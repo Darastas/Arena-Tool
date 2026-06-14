@@ -1,0 +1,39 @@
+[
+  {
+    "name": "M4A1",
+    "aliases": ["m4a1", "M4"],
+    "max_price": 80000,
+    "priority": "high",
+    "note": "命中即提醒"
+  },
+  {
+    "name": "AKM",
+    "aliases": ["akm", "ak-m"],
+    "max_price": 50000,
+    "priority": "high"
+  },
+  {
+    "name": "MK47",
+    "aliases": ["mk47"],
+    "max_price": 60000,
+    "priority": "medium"
+  },
+  {
+    "name": "六级头",
+    "aliases": ["LSHZ-2DTM", "六级头盔", "六头"],
+    "max_price": 120000,
+    "priority": "high"
+  },
+  {
+    "name": "六级甲",
+    "aliases": ["GEN-4", "六甲", "六级护甲"],
+    "max_price": 150000,
+    "priority": "high"
+  },
+  {
+    "name": "热成像",
+    "aliases": ["T-7", "T7", "热瞄"],
+    "max_price": 200000,
+    "priority": "medium"
+  }
+]

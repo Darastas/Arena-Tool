@@ -1,0 +1,7 @@
+# 强制 shell 脚本使用 LF（Linux 服务器执行需要）
+*.sh        text eol=lf
+*.py        text eol=lf
+*.js        text
+*.yaml      text
+*.json      text
+*.md        text

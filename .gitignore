@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+ENV/
+*.egg-info/
+.pytest_cache/
+
+# 敏感配置（绝对不能提交！）
+server/config.yaml
+server/wishlist.json
+*.env
+.env*
+
+# 运行时产物
+server/uploads/
+server/logs/
+server/*.log
+*.log
+
+# 本地缓存
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# OCR 模型缓存（用户首次运行自己下载）
+*.onnx
+~/.cache/rapidocr_onnxruntime/
