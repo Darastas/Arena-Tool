@@ -40,7 +40,7 @@ fi
 say "===== 1/7 安装系统依赖 ====="
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
-apt-get install -y git python3 python3-pip python3-venv libgomp1 curl ca-certificates
+apt-get install -y git python3 python3-pip python3-venv libgomp1 libgl1 libglib2.0-0 curl ca-certificates
 
 # ---------- 2. swap ----------
 say "===== 2/7 检查 swap ====="

@@ -73,7 +73,7 @@ fi
 say "===== 步骤 3/8：安装系统依赖 ====="
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
-apt-get install -y python3 python3-pip python3-venv libgomp1 curl ca-certificates
+apt-get install -y python3 python3-pip python3-venv libgomp1 libgl1 libglib2.0-0 curl ca-certificates
 
 # ------------- 4. 复制源码 -------------
 say "===== 步骤 4/8：复制源码到 $INSTALL_DIR ====="
