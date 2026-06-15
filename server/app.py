@@ -20,7 +20,7 @@ import uuid
 from pathlib import Path
 
 import yaml
-from flask import Flask, jsonify, request
+from flask import Flask, abort, jsonify, request, send_from_directory
 
 from matcher import match_wishlist, load_wishlist
 from notifier import send_hit_email
@@ -108,6 +108,48 @@ def _run_ocr(image_path: Path) -> list[dict]:
 @app.route("/health", methods=["GET"])
 def health():
     return jsonify({"ok": True, "wishlist_size": len(WISHLIST)})
+
+
+# ====== 图片浏览 API（仅 debug_recon 模式用）======
+@app.route("/uploads/<path:subpath>", methods=["GET"])
+def serve_upload(subpath):
+    """供本地浏览器查看侦察图。无需鉴权（建议仅临时开放）。"""
+    return send_from_directory(UPLOAD_DIR, subpath)
+
+
+@app.route("/browse", methods=["GET"])
+def browse_index():
+    """列出 uploads 下所有图片，便于快速预览。"""
+    if not UPLOAD_DIR.exists():
+        return "no uploads dir", 404
+    items = []
+    for p in sorted(UPLOAD_DIR.rglob("*.png"), key=lambda x: x.stat().st_mtime, reverse=True):
+        rel = p.relative_to(UPLOAD_DIR).as_posix()
+        items.append(rel)
+    html = """<html><head><meta charset='utf-8'>
+<style>
+  body{font-family:sans-serif;background:#222;color:#eee;padding:20px}
+  .day{margin:20px 0;padding:10px;background:#333;border-radius:6px}
+  .item{display:inline-block;margin:6px;padding:8px;background:#444;border-radius:4px;
+        max-width:280px;vertical-align:top}
+  .item a{color:#8cf;text-decoration:none;font-size:12px}
+  .item img{width:100%;border:1px solid #555;display:block;margin-top:4px}
+  h3{margin:6px 0;color:#8cf}
+</style></head><body>
+<h2>Arena Shop Monitor - 图床（最新在前）</h2>
+"""
+    # 按日期分组
+    by_day = {}
+    for rel in items:
+        day = rel.split("/")[0] if "/" in rel else "_root"
+        by_day.setdefault(day, []).append(rel)
+    for day in sorted(by_day.keys(), reverse=True):
+        html += f"<div class='day'><h3>{day} ({len(by_day[day])} 张)</h3>"
+        for rel in by_day[day][:200]:  # 每天最多展示 200 张
+            html += f"<div class='item'><a href='/uploads/{rel}' target='_blank'>{rel}</a><br><a href='/uploads/{rel}' target='_blank'><img src='/uploads/{rel}' loading='lazy'></a></div>"
+        html += "</div>"
+    html += "</body></html>"
+    return html
 
 
 @app.route("/upload", methods=["POST"])
