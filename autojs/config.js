@@ -15,6 +15,10 @@ module.exports = {
     // 调度时间（24h），数组允许多次。脚本启动后会保持运行直到执行完所有时间点
     SCHEDULE_TIMES: ["05:01", "05:30"],
 
+    // ⚠️ 测试用：true = 脚本一启动就立即执行一次（不等到调度时间），方便首次部署验证
+    // 验证通过后改为 false，让它只在 SCHEDULE_TIMES 时刻跑
+    RUN_ON_START: true,
+
     // 启动游戏后等待加载的最长秒数
     GAME_LAUNCH_TIMEOUT_SEC: 90,
 
