@@ -23,14 +23,19 @@ function sleepMs(ms) { java.lang.Thread.sleep(ms); }
 
 // ======== 屏幕 / 锁屏 ========
 function ensureScreenOn() {
-    if (!device.isScreenOn()) {
+    let wasOff = !device.isScreenOn();
+    if (wasOff) {
         logMsg("屏幕熄灭，唤醒中...");
         device.wakeUp();
         sleepSec(1);
+        // 仅在屏幕原本是熄灭状态时才做上滑解锁手势
+        // （游戏已在前台时若再上滑会被系统识别为"返回桌面"）
+        // 起点 0.7 终点 0.3，避开屏幕底部的系统手势热区
+        swipe(device.width / 2, device.height * 0.7, device.width / 2, device.height * 0.3, 400);
+        sleepSec(1);
+    } else {
+        logMsg("屏幕已亮，跳过解锁手势");
     }
-    // 简单上滑解锁（无密码场景）。如有密码，请用脸/指纹解锁
-    swipe(device.width / 2, device.height * 0.85, device.width / 2, device.height * 0.2, 400);
-    sleepSec(1);
 }
 
 function lockScreen() {
@@ -169,7 +174,10 @@ function captureEachTab() {
         if (p) uploadImage(p, tab + "_top");
 
         if (CFG.SCROLL_AND_RECAPTURE) {
-            swipe(device.width / 2, device.height * 0.75, device.width / 2, device.height * 0.25, 600);
+            // 在屏幕中央偏左做小幅度上滑，避免触发系统全屏手势
+            // （Android 在屏幕底部边缘上滑 = 返回桌面，所以从中间开始滑）
+            let cx = device.width * 0.4;
+            swipe(cx, device.height * 0.65, cx, device.height * 0.35, 600);
             sleepSec(2);
             let p2 = captureToFile(tab + "_bottom");
             if (p2) uploadImage(p2, tab + "_bottom");
