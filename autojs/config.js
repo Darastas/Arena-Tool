@@ -26,10 +26,10 @@ module.exports = {
     RECON_INTERVAL_SEC: 5,
 
     // ====== 启动 / 加载等待 ======
-    GAME_LAUNCH_TIMEOUT_SEC: 90,
-    MAIN_MENU_WAIT_SEC: 12,                  // 暗区主菜单加载，给足 12s
-    AFTER_TAP_WAIT_SEC: 4,                   // 点击后等待页面切换
-    TAB_WAIT_SEC: 4,
+    GAME_LAUNCH_TIMEOUT_SEC: 120,
+    MAIN_MENU_WAIT_SEC: 40,                  // 暗区启动 + 登录动画很慢，给足 40s
+    AFTER_TAP_WAIT_SEC: 5,                   // 点击后等待页面切换
+    TAB_WAIT_SEC: 5,
 
     // ====== 关弹窗坐标 ======
     // 暗区启动后可能有公告弹窗，叉叉一般在右上角
@@ -38,12 +38,12 @@ module.exports = {
     ],
     CLOSE_POPUP_ROUNDS: 2,
 
-    // ====== 商城入口（图一红圈：右侧中部） ======
-    SHOP_ENTRY_XY: [0.95, 0.33],
+    // ====== 商城入口（实测绝对像素坐标） ======
+    SHOP_ENTRY_XY: [2045, 408],
 
-    // ====== 商城内分类（图二红圈：左侧"每日商店"） ======
+    // ====== 商城内分类（实测绝对像素坐标） ======
     SHOP_TAB_XYS: [
-        { name: "每日商店", xy: [0.08, 0.53] },
+        { name: "每日商店", xy: [200, 588] },
         // 想监控更多分类就加（左侧菜单各项）：
         // { name: "当期热卖", xy: [0.08, 0.20] },
         // { name: "时装近战", xy: [0.08, 0.28] },

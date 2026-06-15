@@ -162,11 +162,37 @@ def upload():
 
     f = request.files["image"]
     raw = f.read()
+    tab = request.form.get("tab", "unknown")
+    return _process_upload(raw, tab)
+
+
+@app.route("/upload_b64", methods=["POST"])
+def upload_b64():
+    """JSON 上传：手机端把图片 base64 编码后 POST 过来。绕开 multipart 兼容问题。"""
+    data = request.get_json(silent=True) or {}
+    token = (request.headers.get("X-Auth-Token") or data.get("token") or "")
+    if token != CFG["server"]["auth_token"]:
+        return jsonify({"ok": False, "error": "auth"}), 401
+
+    b64 = data.get("image_b64")
+    if not b64:
+        return jsonify({"ok": False, "error": "no image_b64"}), 400
+
+    import base64
+    try:
+        raw = base64.b64decode(b64)
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"b64 decode failed: {e}"}), 400
+
+    tab = data.get("tab", "unknown")
+    return _process_upload(raw, tab)
+
+
+def _process_upload(raw: bytes, tab: str):
     max_bytes = CFG["server"]["max_image_bytes"]
     if len(raw) > max_bytes:
         return jsonify({"ok": False, "error": "image too large"}), 413
 
-    # 保存原图（按日期分目录便于排查）
     today = time.strftime("%Y%m%d")
     day_dir = UPLOAD_DIR / today
     day_dir.mkdir(exist_ok=True)
@@ -174,16 +200,12 @@ def upload():
     img_path = day_dir / fname
     img_path.write_bytes(raw)
 
-    # 附加元信息（手机端可传 tab 名等）
-    tab = request.form.get("tab", "unknown")
     log.info(f"接收截图 tab={tab} size={len(raw)} -> {img_path.name}")
 
-    # 跑 OCR（子进程）
     ocr_lines = _run_ocr(img_path)
     if not ocr_lines:
         return jsonify({"ok": False, "error": "ocr empty"}), 200
 
-    # 匹配心愿单
     hits = match_wishlist(
         ocr_lines,
         WISHLIST,
@@ -191,7 +213,6 @@ def upload():
         price_regex=CFG["matcher"]["price_regex"],
     )
 
-    # 持久化结果
     result_path = day_dir / (img_path.stem + ".json")
     result_path.write_text(
         json.dumps(
