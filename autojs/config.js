@@ -2,80 +2,59 @@
  * AutoJs6 端配置 - 部署到手机后修改
  * 路径建议：/sdcard/脚本/arena_shop/config.js
  *
- * 坐标系说明：
- *   绝对像素 [x, y]：手机屏幕的实际像素坐标，例如 [1080, 1920]
- *   相对比例 [0.5, 0.5]：屏幕百分比，0~1 之间视为比例，自动乘以 device.width/height
- *     - [0.5, 0.5] = 屏幕正中心
- *     - [0.5, 0.1] = 横向居中、纵向 10% 处
- *     强烈推荐用相对比例，分辨率变了不用改
- *
- * 调试流程（推荐）：
- *   1. DEBUG_RECON = true → 跑一次 main.js → 8 张侦察图传到服务器
- *   2. 去服务器 uploads 目录看 recon_*.png，记下"商店按钮""枪械 tab"等位置
- *   3. 把坐标填到下方对应字段（推荐用相对比例）
- *   4. DEBUG_RECON = false, DEBUG_DRY_RUN = false → 正式跑
+ * 坐标系：[x, y] 0~1 之间视为相对屏幕百分比，自动乘以 device.width/height
+ *   [0.5, 0.5] = 屏幕正中心；[0.95, 0.33] = 横向 95%、纵向 33%
  */
 module.exports = {
-    // ====== 服务器 ======
-    SERVER_URL: "http://你的服务器IP:8848",
-    AUTH_TOKEN: "和服务器config.yaml保持一致的token",
+    // ====== 服务器（必填） ======
+    SERVER_URL: "http://101.33.228.81:8848",
+    AUTH_TOKEN: "你的真实token",            // 改成 config.yaml 里那串
     UPLOAD_TIMEOUT_MS: 60000,
 
     // ====== 游戏包名 ======
-    // 用 ADB 查：adb shell pm list packages | grep -i bm
-    GAME_PACKAGE: "com.tencent.cd.bm",
+    GAME_PACKAGE: "com.tencent.cd.bm",       // 你已确认过的暗区包名
 
     // ====== 调度 ======
     SCHEDULE_TIMES: ["05:01", "05:30"],
-    // 启动脚本立即跑一次（测试用），验证通过后改 false
-    RUN_ON_START: true,
+    RUN_ON_START: true,                      // 启动后立即跑一次（测试期开）
 
-    // ====== 调试模式（三选一：DRY_RUN / RECON / 都 false = 正常） ======
-    // 第一个 true 测试都关掉，调成 false 才开始真实扫描
-    DEBUG_DRY_RUN: false,    // 仅截当前屏 + 上传，验证链路
-    DEBUG_RECON: true,       // 启动游戏后每 5 秒截一帧，共 8 帧（用于标定坐标）
+    // ====== 调试模式（都 false = 正式模式） ======
+    DEBUG_DRY_RUN: false,
+    DEBUG_RECON: false,
 
-    // 侦察模式参数
-    RECON_FRAMES: 8,         // 连拍多少帧
-    RECON_INTERVAL_SEC: 5,   // 帧间隔秒数
+    RECON_FRAMES: 8,
+    RECON_INTERVAL_SEC: 5,
 
     // ====== 启动 / 加载等待 ======
-    GAME_LAUNCH_TIMEOUT_SEC: 90,  // 启动超时
-    MAIN_MENU_WAIT_SEC: 8,        // 启动后等多久算进主菜单
-    AFTER_TAP_WAIT_SEC: 3,        // 每次点击后等多久（页面加载）
-    TAB_WAIT_SEC: 3,              // 切换 tab 后等多久截图
+    GAME_LAUNCH_TIMEOUT_SEC: 90,
+    MAIN_MENU_WAIT_SEC: 12,                  // 暗区主菜单加载，给足 12s
+    AFTER_TAP_WAIT_SEC: 4,                   // 点击后等待页面切换
+    TAB_WAIT_SEC: 4,
 
-    // ====== 弹窗关闭按钮坐标 ======
-    // 游戏启动后一般有 1-2 个公告/签到弹窗，每个右上角有个"X"叉叉
-    // 大多数游戏公告 X 都在屏幕右上角（约 95% 横向, 15% 纵向）
-    // ⚠️ 先填一个右上角坐标跑一次 RECON 看实际位置，再回来微调
+    // ====== 关弹窗坐标 ======
+    // 暗区启动后可能有公告弹窗，叉叉一般在右上角
     CLOSE_BUTTONS: [
-        [0.92, 0.12],  // 第一个弹窗叉叉（右上角偏内）
+        [0.97, 0.07],     // 通用右上角叉叉
     ],
-    // 每个弹窗可能有两层（如"知道了""领取"），多点击几次
-    CLOSE_POPUP_ROUNDS: 3,
+    CLOSE_POPUP_ROUNDS: 2,
 
-    // ====== 商店入口坐标 ======
-    // ⚠️ 必须先用 RECON 模式看清楚再填！
-    // 暗区主菜单底部通常有任务/仓库/商店/市场等 tab 按钮
-    // 假设"商店"在底部靠右，约 [0.85, 0.93]
-    SHOP_ENTRY_XY: [0.85, 0.93],
+    // ====== 商城入口（图一红圈：右侧中部） ======
+    SHOP_ENTRY_XY: [0.95, 0.33],
 
-    // ====== 商店内分类 tab 坐标 ======
-    // 进入商店后顶部通常有：枪械/护甲/弹药/医疗/其它 等分类
-    // ⚠️ 必须用 RECON 模式确认实际位置后填！
-    // 假设 5 个 tab 平均分布，y 约 0.15，x 从 0.1 到 0.9
+    // ====== 商城内分类（图二红圈：左侧"每日商店"） ======
     SHOP_TAB_XYS: [
-        { name: "枪械", xy: [0.2, 0.15] },
-        { name: "护甲", xy: [0.4, 0.15] },
-        { name: "弹药", xy: [0.6, 0.15] },
-        { name: "医疗", xy: [0.8, 0.15] },
+        { name: "每日商店", xy: [0.08, 0.53] },
+        // 想监控更多分类就加（左侧菜单各项）：
+        // { name: "当期热卖", xy: [0.08, 0.20] },
+        // { name: "时装近战", xy: [0.08, 0.28] },
+        // { name: "盲盒活动", xy: [0.08, 0.36] },
+        // { name: "枪械涂装", xy: [0.08, 0.44] },
+        // { name: "装扮券理财", xy: [0.08, 0.62] },
     ],
 
-    // 每个 tab 截图后再上滑一次截下半场（看到更多物品）
-    // 如果上滑被识别为系统手势，可关闭
+    // 商店内一屏看不全时，再上滑截一次。商品横排 4 件，一般不需要
     SCROLL_AND_RECAPTURE: false,
 
     // 执行结束后是否锁屏
-    LOCK_SCREEN_AFTER: false,  // 调试时先 false，测试通过再 true
+    LOCK_SCREEN_AFTER: false,                // 调试时先 false
 };
