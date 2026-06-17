@@ -80,9 +80,45 @@ function exitGame() {
     logMsg("退出游戏");
     try { home(); } catch (e) {}
     sleepSec(1);
-    try { shell("am force-stop " + CFG.GAME_PACKAGE, true); } catch (e) {
-        logMsg("force-stop 失败（非 root 设备会失败，已 home）：" + e);
+
+    // 多重杀进程：force-stop + kill + 清理后台
+    let pkg = CFG.GAME_PACKAGE;
+    let attempts = [
+        "am force-stop " + pkg,
+        "am kill " + pkg,
+        "am stopservice " + pkg + "/.MainService",
+    ];
+    for (let i = 0; i < attempts.length; i++) {
+        try {
+            let r = shell(attempts[i], false);
+            logMsg("kill 命令: " + attempts[i] + " -> rc=" + (r && r.code));
+        } catch (e) {
+            logMsg("kill 命令异常（忽略）：" + e);
+        }
     }
+
+    // 通过最近任务移除（API 21+）
+    try {
+        let am = context.getSystemService(android.content.Context.ACTIVITY_SERVICE);
+        let tasks = am.getAppTasks();
+        if (tasks) {
+            for (let i = 0; i < tasks.size(); i++) {
+                try {
+                    let t = tasks.get(i);
+                    let info = t.getTaskInfo();
+                    if (info && info.baseActivity &&
+                        String(info.baseActivity.getPackageName()) === pkg) {
+                        t.finishAndRemoveTask();
+                        logMsg("已通过 AppTask.finishAndRemoveTask 移除暗区");
+                    }
+                } catch (e) {}
+            }
+        }
+    } catch (e) {
+        logMsg("AppTask 清理失败（忽略）：" + e);
+    }
+
+    sleepMs(500);
 }
 
 // ======== 关弹窗：轮询点 CLOSE_BUTTONS 里的坐标 ========
@@ -107,8 +143,19 @@ var _captureReady = false;
 function ensureCaptureReady() {
     if (_captureReady) return;
     let ok = false;
-    try { ok = requestScreenCapture(); } catch (e) {
-        logMsg("requestScreenCapture 异常：" + e);
+    try {
+        // 第二个参数 true 表示横屏，不会弹"选择屏幕"对话框
+        // 部分 AutoJs6 版本签名不同，回退到无参版本
+        if (device.width > device.height) {
+            ok = requestScreenCapture(true);
+        } else {
+            ok = requestScreenCapture();
+        }
+    } catch (e) {
+        logMsg("requestScreenCapture(landscape) 异常，回退普通模式：" + e);
+        try { ok = requestScreenCapture(); } catch (e2) {
+            logMsg("requestScreenCapture() 仍异常：" + e2);
+        }
     }
     if (!ok) {
         toast("用户拒绝截图权限或已取消");
@@ -127,6 +174,47 @@ function reacquireCapture() {
     } catch (e) {}
     sleepMs(500);
     ensureCaptureReady();
+}
+
+// 主动停止屏幕录制（流程结束后调用，去掉系统"录屏中"通知）
+function releaseCapture() {
+    // 先等 1.5 秒：防止截图数据还在传，同时给系统状态刷新的时间
+    sleepMs(1500);
+    // 尝试多种停止方式（不同 AutoJs6 版本 API 命名不同）
+    let stopped = false;
+    try {
+        if (typeof stopScreenCapture !== "undefined") {
+            stopScreenCapture();
+            stopped = true;
+            logMsg("已释放截图权限（方式A: stopScreenCapture）");
+        }
+    } catch (e) { logMsg("方式A停止失败：" + e); }
+
+    if (!stopped) {
+        try {
+            if (typeof stopScreen !== "undefined") {
+                stopScreen();
+                stopped = true;
+                logMsg("已释放截图权限（方式B: stopScreen）");
+            }
+        } catch (e) { logMsg("方式B停止失败：" + e); }
+    }
+
+    if (!stopped) {
+        try {
+            // 终极手段：反射调用内部 API 停
+            let runtime = $runtime;
+            let screencap = runtime.getScreenCaptureRequester();
+            if (screencap && screencap.stopScreenCapture) {
+                screencap.stopScreenCapture();
+                logMsg("已释放截图权限（方式C: 反射）");
+            }
+        } catch (e) {
+            logMsg("方式C反射停止失败（忽略）：" + e);
+        }
+    }
+    _captureReady = false;
+    sleepMs(500);
 }
 
 function tryCaptureScreen() {
@@ -247,96 +335,63 @@ function reconMode() {
 // ======== 主流程 ========
 function runOnce() {
     logMsg("=========== runOnce 开始 ===========");
-    ensureCaptureReady();
-    ensureScreenOn();
+    try {
+        ensureCaptureReady();
+        ensureScreenOn();
 
-    if (CFG.DEBUG_DRY_RUN) {
-        logMsg("DEBUG_DRY_RUN：仅截当前屏并上传");
-        let p = captureToFile("dryrun");
-        if (p) uploadImage(p, "dryrun");
-        logMsg("=========== runOnce 完成 (dryrun) ===========");
-        return;
-    }
+        if (CFG.DEBUG_DRY_RUN) {
+            logMsg("DEBUG_DRY_RUN：仅截当前屏并上传");
+            let p = captureToFile("dryrun");
+            if (p) uploadImage(p, "dryrun");
+            logMsg("=========== runOnce 完成 (dryrun) ===========");
+            return;
+        }
 
-    launchGame();
-    if (!waitGameReady()) {
-        logMsg("游戏启动超时，发送告警截图");
-        let p = captureToFile("launch_fail");
-        if (p) uploadImage(p, "launch_fail");
-        return;
-    }
+        launchGame();
+        if (!waitGameReady()) {
+            logMsg("游戏启动超时，发送告警截图");
+            let p = captureToFile("launch_fail");
+            if (p) uploadImage(p, "launch_fail");
+            return;
+        }
 
-    if (CFG.DEBUG_RECON) {
-        reconMode();
+        if (CFG.DEBUG_RECON) {
+            reconMode();
+            exitGame();
+            if (CFG.LOCK_SCREEN_AFTER) lockScreen();
+            logMsg("=========== runOnce 完成 (recon) ===========");
+            return;
+        }
+
+        // 正常模式：关弹窗 → 进商店 → 截图 → 退出
+        dismissPopups();
+        if (!gotoShop()) {
+            let p = captureToFile("no_shop_entry");
+            if (p) uploadImage(p, "no_shop_entry");
+            exitGame();
+            return;
+        }
+        captureEachTab();
         exitGame();
         if (CFG.LOCK_SCREEN_AFTER) lockScreen();
-        logMsg("=========== runOnce 完成 (recon) ===========");
-        return;
+        logMsg("=========== runOnce 完成 ===========");
+    } finally {
+        // 无论流程是否成功，都释放屏幕录制权限，去掉系统"录屏中"通知
+        releaseCapture();
     }
-
-    // 正常模式：关弹窗 → 进商店 → 截图 → 退出
-    dismissPopups();
-    if (!gotoShop()) {
-        let p = captureToFile("no_shop_entry");
-        if (p) uploadImage(p, "no_shop_entry");
-        exitGame();
-        return;
-    }
-    captureEachTab();
-    exitGame();
-    if (CFG.LOCK_SCREEN_AFTER) lockScreen();
-    logMsg("=========== runOnce 完成 ===========");
-}
-
-function nextScheduleDelayMs() {
-    let now = new Date();
-    let best = null;
-    for (let i = 0; i < CFG.SCHEDULE_TIMES.length; i++) {
-        let parts = CFG.SCHEDULE_TIMES[i].split(":");
-        let hh = parseInt(parts[0], 10);
-        let mm = parseInt(parts[1], 10);
-        let target = new Date(now);
-        target.setHours(hh, mm, 0, 0);
-        if (target.getTime() <= now.getTime()) {
-            target.setDate(target.getDate() + 1);
-        }
-        if (best === null || target.getTime() < best.getTime()) best = target;
-    }
-    return best.getTime() - now.getTime();
 }
 
 // ======== 入口 ========
-function startScheduler() {
-    threads.start(function () {
-        logMsg("调度子线程启动，调度时间：" + CFG.SCHEDULE_TIMES.join(", "));
-
-        if (CFG.RUN_ON_START) {
-            try {
-                logMsg("RUN_ON_START=true，立即执行一次 runOnce");
-                runOnce();
-            } catch (e) {
-                logMsg("首次 runOnce 异常：" + e);
-            }
-            sleepSec(60);
-        }
-
-        while (true) {
-            let delay = nextScheduleDelayMs();
-            let mins = Math.round(delay / 60000);
-            logMsg("下次执行约 " + mins + " 分钟后");
-            let chunk = 10 * 60 * 1000;
-            while (delay > 0) {
-                let s = Math.min(delay, chunk);
-                sleepMs(s);
-                delay -= s;
-            }
-            try { runOnce(); } catch (e) { logMsg("runOnce 异常：" + e); }
-            sleepSec(70);
-        }
-    });
+// 注意：本脚本只执行一次，然后退出。
+// 定时请使用 AutoJs6 自带“定时任务/闹钟”分别设置 05:01、05:30 运行 main.js。
+// 不要在脚本内部长循环等待，否则 AutoJs6 会在重启脚本时重置倒计时。
+logMsg("脚本启动：执行一次 runOnce");
+try {
+    runOnce();
+} catch (e) {
+    logMsg("runOnce 异常：" + e);
+} finally {
+    logMsg("脚本结束，退出");
+    toast("Arena Shop Monitor 执行完成");
+    exit();
 }
-
-logMsg("脚本入口加载完成，准备启动调度子线程");
-startScheduler();
-logMsg("主线程返回；后台调度已运行。");
-toast("Arena Shop Monitor 已启动\nRUN_ON_START=" + CFG.RUN_ON_START + "\nRECON=" + CFG.DEBUG_RECON);

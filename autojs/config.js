@@ -15,8 +15,9 @@ module.exports = {
     GAME_PACKAGE: "com.tencent.cd.bm",       // 你已确认过的暗区包名
 
     // ====== 调度 ======
+    // 本脚本不再内置长循环调度；请用 AutoJs6 自带定时任务分别设置 05:01、05:30 运行 main.js。
     SCHEDULE_TIMES: ["05:01", "05:30"],
-    RUN_ON_START: true,                      // 启动后立即跑一次（测试期开）
+    RUN_ON_START: false,
 
     // ====== 调试模式（都 false = 正式模式） ======
     DEBUG_DRY_RUN: false,

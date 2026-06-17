@@ -62,26 +62,29 @@ def _name_hit(line_text: str, keywords: Iterable[str], max_dist: int) -> str | N
         if nk in norm_line:
             return kw
 
-        # 2) 中文关键词必须在含中文的行里匹配；
-        #    英文/型号关键词（如 DP12）允许字母数字行匹配
-        if kw_has_cjk and not line_has_cjk:
+        # 2) 英文/数字型号（如 DP12、M4A1、USAS12）只允许精确包含，严禁模糊匹配。
+        #    否则 DP12 会误命中 USAS12。
+        if not kw_has_cjk:
             continue
 
-        # 3) 短关键词（<3 字符）只接受精确包含，不做模糊
+        # 3) 中文关键词必须在含中文的行里匹配
+        if not line_has_cjk:
+            continue
+
+        # 4) 短关键词（<3 字符）只接受精确包含，不做模糊
         if len(nk) < 3:
             continue
 
-        # 4) 整体编辑距离（仅当长度接近）
+        # 5) 整体编辑距离（仅当长度接近）
         if abs(len(nk) - len(norm_line)) <= max_dist:
             if Levenshtein.distance(nk, norm_line) <= max_dist:
                 return kw
 
-        # 5) 滑动窗口：仅当行文本明显比关键词长，避免误命中
+        # 6) 滑动窗口：仅中文关键词启用，窗口也必须含中文
         if len(norm_line) >= len(nk) + 2 and len(nk) >= 4:
             for i in range(0, len(norm_line) - len(nk) + 1):
                 window = norm_line[i : i + len(nk)]
-                # 中文关键词要求窗口也包含中文
-                if kw_has_cjk and not _has_cjk(window):
+                if not _has_cjk(window):
                     continue
                 if Levenshtein.distance(nk, window) <= max_dist:
                     return kw
